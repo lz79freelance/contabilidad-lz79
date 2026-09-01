@@ -1,0 +1,63 @@
+name: Compilar APK para Amazon Appstore (Flet)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configurar Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Instalar dependencias de Python
+        run: |
+          pip install flet openpyxl pillow
+
+      - name: Decodificar Keystore de Amazon (si existen Secrets) o generar una clave de release
+        env:
+          KEYSTORE_BASE64: ${{ secrets.AMAZON_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Usando Keystore de firma guardado en GitHub Secrets..."
+            echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+            echo "KEYSTORE_PASS=${{ secrets.AMAZON_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.AMAZON_KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASS=${{ secrets.AMAZON_KEY_PASSWORD }}" >> $GITHUB_ENV
+          else
+            echo "No se detectó secreto, generando Keystore de Release automáticamente..."
+            keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias amazonkey -dname "CN=LZ79 Essential, OU=App, O=LZ79, L=Madrid, C=ES" -storepass 12345678 -keypass 12345678
+            echo "KEYSTORE_PASS=12345678" >> $GITHUB_ENV
+            echo "KEY_ALIAS=amazonkey" >> $GITHUB_ENV
+            echo "KEY_PASS=12345678" >> $GITHUB_ENV
+          fi
+
+      - name: Compilar APK firmado con Flet
+        run: |
+          flet build apk --project "LZ79 Essential" --org com.lz79freelance --release --keystore-path release.jks --keystore-password "${{ env.KEYSTORE_PASS }}" --key-alias "${{ env.KEY_ALIAS }}" --key-password "${{ env.KEY_PASS }}"
+
+      - name: Guardar APK para Amazon Appstore como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: LZ79-Essential-Amazon-APK
+          path: build/apk/*.apk

@@ -30,33 +30,25 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Instalar dependencias de Python
+      - name: Instalar dependencias del sistema y Python
         run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+          pip install --upgrade pip
           pip install flet openpyxl pillow
 
-      - name: Decodificar Keystore de Amazon (si existen Secrets) o generar una clave de release
-        env:
-          KEYSTORE_BASE64: ${{ secrets.AMAZON_KEYSTORE_BASE64 }}
+      - name: Generar Keystore de Release para Amazon
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Usando Keystore de firma guardado en GitHub Secrets..."
-            echo "$KEYSTORE_BASE64" | base64 -d > release.jks
-            echo "KEYSTORE_PASS=${{ secrets.AMAZON_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.AMAZON_KEY_ALIAS }}" >> $GITHUB_ENV
-            echo "KEY_PASS=${{ secrets.AMAZON_KEY_PASSWORD }}" >> $GITHUB_ENV
-          else
-            echo "No se detectó secreto, generando Keystore de Release automáticamente..."
-            keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias amazonkey -dname "CN=LZ79 Essential, OU=App, O=LZ79, L=Madrid, C=ES" -storepass 12345678 -keypass 12345678
-            echo "KEYSTORE_PASS=12345678" >> $GITHUB_ENV
-            echo "KEY_ALIAS=amazonkey" >> $GITHUB_ENV
-            echo "KEY_PASS=12345678" >> $GITHUB_ENV
-          fi
+          keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias amazonkey -dname "CN=LZ79 Essential, OU=App, O=LZ79, L=Madrid, C=ES" -storepass 12345678 -keypass 12345678
+          echo "KEYSTORE_PASS=12345678" >> $GITHUB_ENV
+          echo "KEY_ALIAS=amazonkey" >> $GITHUB_ENV
+          echo "KEY_PASS=12345678" >> $GITHUB_ENV
 
-      - name: Compilar APK firmado con Flet
+      - name: Compilar APK con Flet
         run: |
-          flet build apk --project "LZ79 Essential" --org com.lz79freelance --release --keystore-path release.jks --keystore-password "${{ env.KEYSTORE_PASS }}" --key-alias "${{ env.KEY_ALIAS }}" --key-password "${{ env.KEY_PASS }}"
+          flet build apk --project "LZ79 Essential" --org com.lz79freelance --release
 
-      - name: Guardar APK para Amazon Appstore como artefacto
+      - name: Guardar APK como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: LZ79-Essential-Amazon-APK

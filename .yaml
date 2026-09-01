@@ -1,0 +1,39 @@
+name: Compilar iOS (Flet)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Instalar dependencias
+        run: |
+          pip install flet openpyxl pillow
+
+      - name: Compilar proyecto iOS con Flet
+        run: |
+          flet build ipa --project "LZ79 Essential" --org com.lz79freelance --release --no-codesign
+
+      - name: Guardar ejecutable IPA como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: LZ79-Essential-iOS
+          path: build/ipa/*.ipa

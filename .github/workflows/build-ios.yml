@@ -1,39 +1,51 @@
-﻿name: Compilar iOS (Flet)
+﻿name: Build iOS IPA (Flet)
 
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+  workflow_dispatch: # Permite lanzar la compilación manualmente desde GitHub
 
 jobs:
   build-ios:
     runs-on: macos-latest
 
     steps:
-      - name: Descargar repositorio
+      - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Configurar entorno Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.11"
 
       - name: Instalar Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: "3.24.x"
+          channel: "stable"
+          cache: true
 
-      - name: Instalar dependencias
+      - name: Instalar Flet y dependencias del proyecto
         run: |
-          pip install flet openpyxl pillow
+          python -m pip install --upgrade pip
+          pip install flet qrcode openpyxl pillow
 
-      - name: Compilar proyecto iOS con Flet
+      - name: Compilar proyecto iOS (sin firma estricta inicial)
         run: |
-          flet build ipa --project "LZ79 Essential" --org com.lz79freelance --release --no-codesign
+          # Cambia org y project si usas otros identificadores
+          flet build ipa --no-codesign --org com.lz79freelance --project lz79essential
 
-      - name: Guardar ejecutable IPA como artefacto
+      - name: Empaquetar Runner.app en formato .ipa
+        run: |
+          # Flutter genera la compilación en build/ios/iphoneos/Runner.app
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r lz79_unsigned.ipa Payload
+          mv lz79_unsigned.ipa ../../../
+          cd ../../../
+
+      - name: Subir artefacto IPA
         uses: actions/upload-artifact@v4
         with:
-          name: LZ79-Essential-iOS
-          path: build/ipa/*.ipa
+          name: lz79-ios-ipa
+          path: lz79_unsigned.ipa
+          retention-days: 7

@@ -31,7 +31,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           pip install --upgrade pip
-          pip install flet openpyxl pillow
+          pip install flet openpyxl pillow qrcode
 
       - name: Compilar APK con Flet
         run: |

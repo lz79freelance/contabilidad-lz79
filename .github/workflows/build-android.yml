@@ -46,7 +46,7 @@ jobs:
 
       - name: Compilar APK con Flet
         run: |
-          flet build apk --project "LZ79 Essential" --org com.lz79freelance --release
+         flet build apk --project "LZ79 Essential" --org com.lz79freelance
 
       - name: Guardar APK como artefacto
         uses: actions/upload-artifact@v4
